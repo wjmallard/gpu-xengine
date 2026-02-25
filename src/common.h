@@ -50,14 +50,19 @@ static_assert(sizeof(Sample) == 2, "Sample must be 2 bytes (no padding)");
     } \
 } while(0)
 
+// --- Utilities ---
+static inline int ceil_div(int n, int d) {
+    return (n + d - 1) / d;
+}
+
 // --- Nibble pack/unpack ---
-static inline uint8_t pack_sample(int re, int im) {
+static __host__ __device__ inline uint8_t pack_sample(int re, int im) {
     if (re < -7) re = -7; if (re > 7) re = 7;
     if (im < -7) im = -7; if (im > 7) im = 7;
     return (uint8_t)(((re & 0xF) << 4) | (im & 0xF));
 }
 
-static inline void unpack_sample(uint8_t byte, int8_t* re, int8_t* im) {
+static __host__ __device__ inline void unpack_sample(uint8_t byte, int8_t* re, int8_t* im) {
     *re = ((int8_t)(byte & 0xF0)) >> 4;
     *im = ((int8_t)(byte << 4)) >> 4;
 }
