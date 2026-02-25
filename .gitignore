@@ -1,0 +1,14 @@
+# Build output
+xengine
+test_cpu
+*.o
+
+# CUDA compiled objects
+*.cubin
+*.ptx
+*.fatbin
+
+# Editor/OS
+.DS_Store
+*.swp
+*~
