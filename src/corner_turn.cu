@@ -1,11 +1,12 @@
 #include "corner_turn.h"
 
-#define BLOCK_SIZE 256
+#define THREADS_PER_BLOCK 256
+#define N_BLOCKS(n) ceil_div(n, THREADS_PER_BLOCK)
 
 /*
+ * Grid:   (N_BLOCKS(n_spectra), N_ANTENNAS, N_CHANNELS)
+ * Block:  THREADS_PER_BLOCK threads
  * Thread: (spectrum, antenna, channel)
- * Grid:  (ceil(n_spectra/BLOCK_SIZE), N_ANTENNAS, N_CHANNELS)
- * Block: BLOCK_SIZE threads
  * 
  * Result: (channel, antenna, spectrum)
  */
@@ -39,8 +40,8 @@ void launch_corner_turn(
     Sample *d_unpacked,
     int n_spectra
 ) {
-    dim3 block(BLOCK_SIZE);
-    dim3 grid(ceil_div(n_spectra, BLOCK_SIZE), N_ANTENNAS, N_CHANNELS);
+    dim3 grid(N_BLOCKS(n_spectra), N_ANTENNAS, N_CHANNELS);
+    dim3 block(THREADS_PER_BLOCK);
     corner_turn_kernel<<<grid, block>>>(d_packed, d_unpacked, n_spectra);
     CUDA_CHECK(cudaGetLastError());
 }

@@ -51,7 +51,7 @@ static_assert(sizeof(Sample) == 2, "Sample must be 2 bytes (no padding)");
 } while(0)
 
 // --- Utilities ---
-static inline int ceil_div(int n, int d) {
+static __host__ __device__ inline int ceil_div(int n, int d) {
     return (n + d - 1) / d;
 }
 
