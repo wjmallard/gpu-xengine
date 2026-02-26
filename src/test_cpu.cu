@@ -172,8 +172,8 @@ static bool test_noise(int n_spectra) {
     double r_ca = corr_coeff(output, 2, 0, 7, 8);  // CC, AA, CA_re, CA_im
 
     printf(
-        "  r_AB=%.4f  r_BC=%.4f  r_CA=%.4f\n"
-        "  Expected: AB~0.0, BC~0.0, CA~0.0\n",
+        "  r_AB=%.4f  r_BC=%.4f  r_CA=%.4f"
+        "  --  Expected: AB~0.0, BC~0.0, CA~0.0\n",
         r_ab, r_bc, r_ca
     );
     printf("\n");
@@ -196,8 +196,8 @@ static bool test_correlated(int n_spectra) {
     double r_ca = corr_coeff(output, 2, 0, 7, 8);  // CC, AA, CA_re, CA_im
 
     printf(
-        "  r_AB=%.4f  r_BC=%.4f  r_CA=%.4f\n"
-        "  Expected: AB~1.0, BC~0.0, CA~0.0\n",
+        "  r_AB=%.4f  r_BC=%.4f  r_CA=%.4f"
+        "  --  Expected: AB~1.0, BC~0.0, CA~0.0\n",
         r_ab, r_bc, r_ca
     );
 
@@ -216,6 +216,6 @@ int main() {
     all_pass &= test_noise(n_spectra);
     all_pass &= test_correlated(n_spectra);
 
-    printf("\n=== %s ===\n", all_pass ? "ALL PASSED" : "SOME FAILED");
+    printf("\n=== %s ===\n", all_pass ? "ALL TESTS PASSED" : "SOME TESTS FAILED");
     return all_pass ? 0 : 1;
 }
