@@ -93,7 +93,7 @@ static bool test_constant(int n_spectra) {
     bool pass = check_uniform(output, n_spectra, n_spectra, 0, "constant");
     printf("\n");
 
-    free(data);
+    cudaFreeHost(data);
     return pass;
 }
 
@@ -110,7 +110,7 @@ static bool test_impulse(int n_spectra) {
     bool pass = check_uniform(output, 25 * n_spectra, 25 * n_spectra, 0, "impulse");
     printf("\n");
 
-    free(data);
+    cudaFreeHost(data);
     return pass;
 }
 
@@ -153,7 +153,7 @@ static bool test_tone(int n_spectra) {
         printf("  PASS tone\n");
     printf("\n");
 
-    free(data);
+    cudaFreeHost(data);
     return pass;
 }
 
@@ -178,7 +178,7 @@ static bool test_noise(int n_spectra) {
     );
     printf("\n");
 
-    free(data);
+    cudaFreeHost(data);
     return true;
 }
 
@@ -201,7 +201,7 @@ static bool test_correlated(int n_spectra) {
         r_ab, r_bc, r_ca
     );
 
-    free(data);
+    cudaFreeHost(data);
     return true;
 }
 

@@ -91,7 +91,7 @@ static bool run_pattern(TestPattern pattern, int n_spectra) {
     CUDA_CHECK(cudaFree(d_packed));
     CUDA_CHECK(cudaFree(d_transposed));
     CUDA_CHECK(cudaFree(d_output));
-    free(h_packed);
+    CUDA_CHECK(cudaFreeHost(h_packed));
 
     return mismatches == 0;
 }
