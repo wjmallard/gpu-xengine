@@ -11,14 +11,14 @@ All arithmetic is integer (`int8` inputs, `int32` accumulators), so we can valid
 
 ## Status
 
-Validated for correctness but not yet optimized. Currently at 77% of the original FPGA's throughput:
+Validated for correctness. Currently at 88% of the original FPGA's throughput:
 
 | | Spectra/sec | Real-time? |
 |---|---|---|
 | FPGA (original) | 45.0 M | ✓ |
-| GPU (current, A40) | 34.6 M | ✗ (1.30× budget) |
+| GPU (current, A40) | 39.7 M | ✗ (1.13× budget) |
 
-The current bottleneck is the corner turn kernel (49% of compute time).
+The current bottleneck is the H2D transfer (52% of pipeline time).
 
 ## Performance History
 
@@ -26,6 +26,7 @@ The current bottleneck is the corner turn kernel (49% of compute time).
 |---------|-----|--------|-------------|----------|
 | [v0.1](https://github.com/wjmallard/gpu-xengine/tree/v0.1) | A40 | Naive implementation | 32.5 M | 72% |
 | [v0.2](https://github.com/wjmallard/gpu-xengine/tree/v0.2) | A40 | Move unpack from corner_turn kernel to correlation kernel | 34.6 M | 77% |
+| [v0.3](https://github.com/wjmallard/gpu-xengine/tree/v0.3) | A40 | Tile corner turn in shared memory with coalesced reads | 39.7 M | 88% |
 
 ## Build
 
