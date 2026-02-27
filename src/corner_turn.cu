@@ -42,21 +42,26 @@ __global__ void corner_turn_kernel(
 
     /*
      * Transposed write: smem → gmem
-     * Sequential smem reads, scattered gmem writes.
+     * Scattered smem reads, coalesced gmem writes.
      *
      * Decompose each byte's position into (spectrum, antenna, channel),
      * then write to output layout: [channel][antenna][spectrum].
      */
     for (int i = tid; i < tile_bytes; i += THREADS_PER_BLOCK) {
-        int local_s  = i / BYTES_PER_SPECTRUM;
-        int col      = i % BYTES_PER_SPECTRUM;
-        int ant      = col / N_CHANNELS;
-        int ch       = col % N_CHANNELS;
-
+        // Decompose i in output order: [channel][antenna][spectrum]
+        int ch      = i / (N_ANTENNAS * n_tile);
+        int ch_rem  = i % (N_ANTENNAS * n_tile);
+        int ant     = ch_rem / n_tile;
+        int local_s = ch_rem % n_tile;
         int global_s = s_start + local_s;
+
+        // Read from smem: [spectrum][antenna][channel]
+        int smem_idx = local_s * N_ANTENNAS * N_CHANNELS + ant * N_CHANNELS + ch;
+
+        // Write to gmem: [channel][antenna][spectrum]
         int gmem_idx = ch * N_ANTENNAS * n_spectra + ant * n_spectra + global_s;
 
-        transposed[gmem_idx] = smem[i];
+        transposed[gmem_idx] = smem[smem_idx];
     }
 }
 
