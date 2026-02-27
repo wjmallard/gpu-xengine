@@ -65,11 +65,7 @@ static void fill_correlated(uint8_t* packed_data, size_t n_bytes, uint32_t seed)
 void fengine_sim(uint8_t** packed_data, int n_spectra, TestPattern pattern, unsigned int seed) {
 
     size_t n_bytes = (size_t)n_spectra * BYTES_PER_SPECTRUM;
-    *packed_data = (uint8_t*)malloc(n_bytes);
-    if (!*packed_data) {
-        fprintf(stderr, "Failed to allocate %zu bytes for F-engine data\n", n_bytes);
-        exit(EXIT_FAILURE);
-    }
+    CUDA_CHECK(cudaMallocHost(packed_data, n_bytes));
 
     switch (pattern) {
         case PATTERN_CONSTANT:   fill_constant(*packed_data, n_bytes); break;

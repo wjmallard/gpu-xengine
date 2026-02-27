@@ -16,7 +16,7 @@ Validated for correctness. Currently exceeds the original FPGA's throughput:
 | | Spectra/sec | Real-time? |
 |---|---|---|
 | FPGA (original) | 45.0 M | ✓ |
-| GPU (current, A40) | 56.1 M | ✓ (0.80× budget) |
+| GPU (current, L40) | 79.1 M | ✓ (0.57× budget) |
 
 The current bottleneck is the H2D transfer (73% of pipeline time).
 
@@ -28,6 +28,7 @@ The current bottleneck is the H2D transfer (73% of pipeline time).
 | [v0.2](https://github.com/wjmallard/gpu-xengine/tree/v0.2) | A40 | Move unpack from corner_turn kernel to correlation kernel | 34.6 M | 77% |
 | [v0.3](https://github.com/wjmallard/gpu-xengine/tree/v0.3) | A40 | Tile corner turn in shared memory with coalesced reads | 39.7 M | 88% |
 | [v0.4](https://github.com/wjmallard/gpu-xengine/tree/v0.4) | A40 | Coalesce writes in corner turn | 56.1 M | 125% |
+| [v0.5](https://github.com/wjmallard/gpu-xengine/tree/v0.5) | A40 | Pinned host memory for H2D transfer | TBD | TBD |
 
 ## Build
 
