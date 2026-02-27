@@ -51,22 +51,22 @@ static bool run_pattern(TestPattern pattern, int n_spectra) {
 
     // Run GPU pipeline
     uint8_t *d_packed;
-    Sample *d_unpacked;
+    uint8_t *d_transposed;
     int32_t *d_output;
 
     size_t packed_size   = (size_t)n_spectra * BYTES_PER_SPECTRUM;
-    size_t unpacked_size = (size_t)N_CHANNELS * N_ANTENNAS * n_spectra * sizeof(Sample);
+    size_t transposed_size = packed_size;
     size_t output_size   = OUTPUT_INTS * sizeof(int32_t);
 
     CUDA_CHECK(cudaMalloc(&d_packed, packed_size));
-    CUDA_CHECK(cudaMalloc(&d_unpacked, unpacked_size));
+    CUDA_CHECK(cudaMalloc(&d_transposed, transposed_size));
     CUDA_CHECK(cudaMalloc(&d_output, output_size));
 
     CUDA_CHECK(
         cudaMemcpy(d_packed, h_packed, packed_size, cudaMemcpyHostToDevice)
     );
-    launch_corner_turn(d_packed, d_unpacked, n_spectra);
-    launch_xcorr_integrate(d_unpacked, d_output, n_spectra);
+    launch_corner_turn(d_packed, d_transposed, n_spectra);
+    launch_xcorr_integrate(d_transposed, d_output, n_spectra);
 
     int32_t gpu_output[OUTPUT_INTS];
     CUDA_CHECK(
@@ -89,7 +89,7 @@ static bool run_pattern(TestPattern pattern, int n_spectra) {
 
     // Cleanup
     CUDA_CHECK(cudaFree(d_packed));
-    CUDA_CHECK(cudaFree(d_unpacked));
+    CUDA_CHECK(cudaFree(d_transposed));
     CUDA_CHECK(cudaFree(d_output));
     free(h_packed);
 

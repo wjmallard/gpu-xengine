@@ -12,36 +12,36 @@ static void run_benchmark(int n_spectra, int n_iterations = 20) {
 
     // Device allocation
     uint8_t* d_packed;
-    Sample*  d_unpacked;
+    uint8_t* d_transposed;
     int32_t* d_output;
 
     size_t packed_size   = (size_t)n_spectra * BYTES_PER_SPECTRUM;
-    size_t unpacked_size = (size_t)N_CHANNELS * N_ANTENNAS * n_spectra * sizeof(Sample);
+    size_t transposed_size = packed_size;
     size_t output_size   = OUTPUT_INTS * sizeof(int32_t);
 
     CUDA_CHECK(cudaMalloc(&d_packed, packed_size));
-    CUDA_CHECK(cudaMalloc(&d_unpacked, unpacked_size));
+    CUDA_CHECK(cudaMalloc(&d_transposed, transposed_size));
     CUDA_CHECK(cudaMalloc(&d_output, output_size));
 
     // CUDA events
-    cudaEvent_t ev_start, ev_h2d, ev_unpack, ev_xcorr, ev_end;
+    cudaEvent_t ev_start, ev_h2d, ev_corner, ev_xcorr, ev_end;
     CUDA_CHECK(cudaEventCreate(&ev_start));
     CUDA_CHECK(cudaEventCreate(&ev_h2d));
-    CUDA_CHECK(cudaEventCreate(&ev_unpack));
+    CUDA_CHECK(cudaEventCreate(&ev_corner));
     CUDA_CHECK(cudaEventCreate(&ev_xcorr));
     CUDA_CHECK(cudaEventCreate(&ev_end));
 
     // Warmup (2 iterations)
     for (int w = 0; w < 2; w++) {
         CUDA_CHECK(cudaMemcpy(d_packed, h_packed, packed_size, cudaMemcpyHostToDevice));
-        launch_corner_turn(d_packed, d_unpacked, n_spectra);
-        launch_xcorr_integrate(d_unpacked, d_output, n_spectra);
+        launch_corner_turn(d_packed, d_transposed, n_spectra);
+        launch_xcorr_integrate(d_transposed, d_output, n_spectra);
         CUDA_CHECK(cudaMemcpy(h_output, d_output, output_size, cudaMemcpyDeviceToHost));
     }
     CUDA_CHECK(cudaDeviceSynchronize());
 
     // Time iterations
-    float sum_h2d = 0, sum_unpack = 0, sum_xcorr = 0, sum_d2h = 0, sum_total = 0;
+    float sum_h2d = 0, sum_corner = 0, sum_xcorr = 0, sum_d2h = 0, sum_total = 0;
 
     for (int i = 0; i < n_iterations; i++) {
         CUDA_CHECK(cudaEventRecord(ev_start));
@@ -49,10 +49,10 @@ static void run_benchmark(int n_spectra, int n_iterations = 20) {
         CUDA_CHECK(cudaMemcpy(d_packed, h_packed, packed_size, cudaMemcpyHostToDevice));
         CUDA_CHECK(cudaEventRecord(ev_h2d));
 
-        launch_corner_turn(d_packed, d_unpacked, n_spectra);
-        CUDA_CHECK(cudaEventRecord(ev_unpack));
+        launch_corner_turn(d_packed, d_transposed, n_spectra);
+        CUDA_CHECK(cudaEventRecord(ev_corner));
 
-        launch_xcorr_integrate(d_unpacked, d_output, n_spectra);
+        launch_xcorr_integrate(d_transposed, d_output, n_spectra);
         CUDA_CHECK(cudaEventRecord(ev_xcorr));
 
         CUDA_CHECK(cudaMemcpy(h_output, d_output, output_size, cudaMemcpyDeviceToHost));
@@ -62,14 +62,14 @@ static void run_benchmark(int n_spectra, int n_iterations = 20) {
 
         float ms;
         CUDA_CHECK(cudaEventElapsedTime(&ms, ev_start, ev_h2d));    sum_h2d    += ms;
-        CUDA_CHECK(cudaEventElapsedTime(&ms, ev_h2d, ev_unpack));   sum_unpack += ms;
-        CUDA_CHECK(cudaEventElapsedTime(&ms, ev_unpack, ev_xcorr)); sum_xcorr  += ms;
+        CUDA_CHECK(cudaEventElapsedTime(&ms, ev_h2d, ev_corner));   sum_corner += ms;
+        CUDA_CHECK(cudaEventElapsedTime(&ms, ev_corner, ev_xcorr)); sum_xcorr  += ms;
         CUDA_CHECK(cudaEventElapsedTime(&ms, ev_xcorr, ev_end));    sum_d2h    += ms;
         CUDA_CHECK(cudaEventElapsedTime(&ms, ev_start, ev_end));    sum_total  += ms;
     }
 
     float avg_h2d    = sum_h2d    / n_iterations;
-    float avg_unpack = sum_unpack / n_iterations;
+    float avg_corner = sum_corner / n_iterations;
     float avg_xcorr  = sum_xcorr  / n_iterations;
     float avg_d2h    = sum_d2h    / n_iterations;
     float avg_total  = sum_total  / n_iterations;
@@ -82,7 +82,7 @@ static void run_benchmark(int n_spectra, int n_iterations = 20) {
     printf("  Stage                Time (ms)\n");
     printf("  ------------------------------\n");
     printf("  H2D transfer         %8.3f\n", avg_h2d);
-    printf("  Corner turn          %8.3f\n", avg_unpack);
+    printf("  Corner turn          %8.3f\n", avg_corner);
     printf("  Xcorr + integrate    %8.3f\n", avg_xcorr);
     printf("  D2H transfer         %8.3f\n", avg_d2h);
     printf("  ------------------------------\n");
@@ -107,11 +107,11 @@ static void run_benchmark(int n_spectra, int n_iterations = 20) {
     // Cleanup
     CUDA_CHECK(cudaEventDestroy(ev_start));
     CUDA_CHECK(cudaEventDestroy(ev_h2d));
-    CUDA_CHECK(cudaEventDestroy(ev_unpack));
+    CUDA_CHECK(cudaEventDestroy(ev_corner));
     CUDA_CHECK(cudaEventDestroy(ev_xcorr));
     CUDA_CHECK(cudaEventDestroy(ev_end));
     CUDA_CHECK(cudaFree(d_packed));
-    CUDA_CHECK(cudaFree(d_unpacked));
+    CUDA_CHECK(cudaFree(d_transposed));
     CUDA_CHECK(cudaFree(d_output));
     free(h_packed);
 }

@@ -33,13 +33,6 @@
 // Output: 64 channels x 9 products x 4 bytes = 2304 bytes
 #define OUTPUT_INTS (N_CHANNELS * N_PRODUCTS)
 
-// --- Unpacked sample type ---
-struct Sample {
-    int8_t re;
-    int8_t im;
-};
-static_assert(sizeof(Sample) == 2, "Sample must be 2 bytes (no padding)");
-
 // --- CUDA error checking ---
 #define CUDA_CHECK(call) do { \
     cudaError_t err = call; \

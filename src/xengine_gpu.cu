@@ -10,7 +10,7 @@
  * Shared-memory reduction combines per-thread results.
  */
 __global__ void xcorr_integrate_kernel(
-    const Sample *unpacked,
+    const uint8_t *d_transposed,
     int32_t *output,
     int n_spectra
 ) {
@@ -18,7 +18,7 @@ __global__ void xcorr_integrate_kernel(
     int tid = threadIdx.x; // thread  [0, THREADS_PER_BLOCK)
 
     // Pointer to this channel's data: [antenna][spectrum]
-    const Sample *ch_data = unpacked + ch * N_ANTENNAS * n_spectra;
+    const uint8_t *ch_data = d_transposed + ch * N_ANTENNAS * n_spectra;
 
     // Divide spectra evenly across threads
     int spectra_per_thread = ceil_div(n_spectra, THREADS_PER_BLOCK);
@@ -40,24 +40,30 @@ __global__ void xcorr_integrate_kernel(
 
     // Fill accumulation registers
     for (int s = s_start; s < s_end; s++) {
-        Sample a = ch_data[0 * n_spectra + s];
-        Sample b = ch_data[1 * n_spectra + s];
-        Sample c = ch_data[2 * n_spectra + s];
+        uint8_t a = ch_data[0 * n_spectra + s];
+        uint8_t b = ch_data[1 * n_spectra + s];
+        uint8_t c = ch_data[2 * n_spectra + s];
+
+        // Unpack bytes
+        int8_t a_re, a_im, b_re, b_im, c_re, c_im;
+        unpack_sample(a, &a_re, &a_im);
+        unpack_sample(b, &b_re, &b_im);
+        unpack_sample(c, &c_re, &c_im);
 
         // Auto-correlations: |x|^2
-        acc_aa += a.re * a.re + a.im * a.im;
-        acc_bb += b.re * b.re + b.im * b.im;
-        acc_cc += c.re * c.re + c.im * c.im;
+        acc_aa += a_re * a_re + a_im * a_im;
+        acc_bb += b_re * b_re + b_im * b_im;
+        acc_cc += c_re * c_re + c_im * c_im;
 
         // Cross-correlations: x * conj(y)
-        acc_ab_re += a.re * b.re + a.im * b.im;
-        acc_ab_im += a.im * b.re - a.re * b.im;
+        acc_ab_re += a_re * b_re + a_im * b_im;
+        acc_ab_im += a_im * b_re - a_re * b_im;
 
-        acc_bc_re += b.re * c.re + b.im * c.im;
-        acc_bc_im += b.im * c.re - b.re * c.im;
+        acc_bc_re += b_re * c_re + b_im * c_im;
+        acc_bc_im += b_im * c_re - b_re * c_im;
 
-        acc_ca_re += c.re * a.re + c.im * a.im;
-        acc_ca_im += c.im * a.re - c.re * a.im;
+        acc_ca_re += c_re * a_re + c_im * a_im;
+        acc_ca_im += c_im * a_re - c_re * a_im;
     }
 
     // Move per-thread results into shared memory for cross-thread reduction
@@ -106,12 +112,12 @@ __global__ void xcorr_integrate_kernel(
 }
 
 void launch_xcorr_integrate(
-    const Sample *d_unpacked,
+    const uint8_t *d_transposed,
     int32_t *d_output,
     int n_spectra
 ) {
     dim3 grid(N_CHANNELS); // one block per channel
     dim3 block(THREADS_PER_BLOCK);
-    xcorr_integrate_kernel<<<grid, block>>>(d_unpacked, d_output, n_spectra);
+    xcorr_integrate_kernel<<<grid, block>>>(d_transposed, d_output, n_spectra);
     CUDA_CHECK(cudaGetLastError());
 }
