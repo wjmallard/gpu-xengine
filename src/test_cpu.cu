@@ -5,10 +5,16 @@
 
 static void print_channel(const int32_t *output, int ch) {
     const int32_t *p = output + ch * N_PRODUCTS;
-    printf(
-        "  ch %2d:  AA*=%-8d BB*=%-8d CC*=%-8d AB*=(%d,%d)  BC*=(%d,%d)  CA*=(%d,%d)\n",
-        ch, p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8]
-    );
+    printf("  ch %2d:", ch);
+    for (int bl = 0; bl < N_BASELINES; bl++) {
+        int ant_i, ant_j;
+        baseline_to_ants(bl, &ant_i, &ant_j);
+        if (ant_i == ant_j)
+            printf("  %c%c*=%-8d", 'A'+ant_i, 'A'+ant_j, p[bl*2]);
+        else
+            printf("  %c%c*=(%d,%d)", 'A'+ant_i, 'A'+ant_j, p[bl*2], p[bl*2+1]);
+    }
+    printf("\n");
 }
 
 static void print_channels(const int32_t *output) {
@@ -17,28 +23,25 @@ static void print_channels(const int32_t *output) {
 }
 
 /*
- * Normalized correlation coefficient, averaged over all channels.
+ * Normalized correlation coefficient for a given baseline, averaged over all
+ * channels.
  *
  * corr_coeff = |XY*| / sqrt(XX* * YY*)
- *
- * auto_x, auto_y: product indices for the two autos (0=AA, 1=BB, 2=CC)
- * cross_re, cross_im: product indices for the cross
  */
-static double corr_coeff(
-    const int32_t *output,
-    int auto_x,
-    int auto_y,
-    int cross_re,
-    int cross_im
-) {
+static double corr_coeff(const int32_t *output, int bl) {
+    int ant_i, ant_j;
+    baseline_to_ants(bl, &ant_i, &ant_j);
+    int auto_i = ants_to_baseline(ant_i, ant_i);
+    int auto_j = ants_to_baseline(ant_j, ant_j);
+
     double sum = 0;
     for (int ch = 0; ch < N_CHANNELS; ch++) {
         const int32_t *p = output + ch * N_PRODUCTS;
 
-        double xx = p[auto_x];
-        double yy = p[auto_y];
-        double re = p[cross_re];
-        double im = p[cross_im];
+        double xx = p[auto_i * 2];
+        double yy = p[auto_j * 2];
+        double re = p[bl * 2];
+        double im = p[bl * 2 + 1];
 
         sum += sqrt(re * re + im * im) / sqrt(xx * yy);
     }
@@ -56,18 +59,17 @@ static bool check_uniform(
     int ch;
     for (ch = 0; ch < N_CHANNELS; ch++) {
         const int32_t *p = output + ch * N_PRODUCTS;
-        if (p[0] != exp_auto
-            || p[1] != exp_auto
-            || p[2] != exp_auto
-            || p[3] != exp_cross_re
-            || p[4] != exp_cross_im
-            || p[5] != exp_cross_re
-            || p[6] != exp_cross_im
-            || p[7] != exp_cross_re
-            || p[8] != exp_cross_im
-        ) {
-            break;
+        bool ok = true;
+        for (int bl = 0; bl < N_BASELINES && ok; bl++) {
+            int ant_i, ant_j;
+            baseline_to_ants(bl, &ant_i, &ant_j);
+            if (ant_i == ant_j)
+                ok = (p[bl*2] == exp_auto && p[bl*2+1] == 0);
+            else
+                ok = (p[bl*2] == exp_cross_re && p[bl*2+1] == exp_cross_im);
         }
+        if (!ok)
+            break;
     }
 
     if (ch < N_CHANNELS) {
@@ -125,11 +127,14 @@ static bool test_tone(int n_spectra) {
 
     bool pass = true;
 
-    // Channel 7 should match impulse values
+    // Channel 7 should match impulse values: all baselines = (25*n, 0)
     const int32_t *p7 = output + 7 * N_PRODUCTS;
-    if (p7[0] != 25 * n_spectra || p7[3] != 25 * n_spectra || p7[4] != 0) {
-        printf("  FAIL tone: ch 7 has wrong values\n");
-        pass = false;
+    for (int bl = 0; bl < N_BASELINES; bl++) {
+        if (p7[bl*2] != 25 * n_spectra || p7[bl*2+1] != 0) {
+            printf("  FAIL tone: ch 7 bl %d has wrong values (%d,%d)\n",
+                   bl, p7[bl*2], p7[bl*2+1]);
+            pass = false;
+        }
     }
 
     // All other channels should be zero
@@ -167,14 +172,18 @@ static bool test_noise(int n_spectra) {
     print_channels(output);
 
     // r = |XY*| / sqrt(XX* * YY*), averaged over channels
-    double r_ab = corr_coeff(output, 0, 1, 3, 4);  // AA, BB, AB_re, AB_im
-    double r_bc = corr_coeff(output, 1, 2, 5, 6);  // BB, CC, BC_re, BC_im
-    double r_ca = corr_coeff(output, 2, 0, 7, 8);  // CC, AA, CA_re, CA_im
+    int bl_ab = ants_to_baseline(0, 1);
+    int bl_bc = ants_to_baseline(1, 2);
+    int bl_ac = ants_to_baseline(0, 2);
+
+    double r_ab = corr_coeff(output, bl_ab);
+    double r_bc = corr_coeff(output, bl_bc);
+    double r_ac = corr_coeff(output, bl_ac);
 
     printf(
-        "  r_AB=%.4f  r_BC=%.4f  r_CA=%.4f"
-        "  --  Expected: AB~0.0, BC~0.0, CA~0.0\n",
-        r_ab, r_bc, r_ca
+        "  r_AB=%.4f  r_BC=%.4f  r_AC=%.4f"
+        "  --  Expected: all ~0.0\n",
+        r_ab, r_bc, r_ac
     );
     printf("\n");
 
@@ -191,14 +200,19 @@ static bool test_correlated(int n_spectra) {
     xengine_cpu(data, output, n_spectra);
     print_channels(output);
 
-    double r_ab = corr_coeff(output, 0, 1, 3, 4);  // AA, BB, AB_re, AB_im
-    double r_bc = corr_coeff(output, 1, 2, 5, 6);  // BB, CC, BC_re, BC_im
-    double r_ca = corr_coeff(output, 2, 0, 7, 8);  // CC, AA, CA_re, CA_im
+    // Antennas 0,1 are correlated; antenna 2 is independent
+    int bl_ab = ants_to_baseline(0, 1);
+    int bl_bc = ants_to_baseline(1, 2);
+    int bl_ac = ants_to_baseline(0, 2);
+
+    double r_ab = corr_coeff(output, bl_ab);
+    double r_bc = corr_coeff(output, bl_bc);
+    double r_ac = corr_coeff(output, bl_ac);
 
     printf(
-        "  r_AB=%.4f  r_BC=%.4f  r_CA=%.4f"
-        "  --  Expected: AB~1.0, BC~0.0, CA~0.0\n",
-        r_ab, r_bc, r_ca
+        "  r_AB=%.4f  r_BC=%.4f  r_AC=%.4f"
+        "  --  Expected: AB~1.0, BC~0.0, AC~0.0\n",
+        r_ab, r_bc, r_ac
     );
 
     cudaFreeHost(data);

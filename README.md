@@ -5,7 +5,7 @@ A CUDA reimplementation of the FPGA cross-correlation engine (X-engine) from the
 The F-engine simulator generates synthetic input matching the original FPGA output format: complex spectra from 3 antennas, channelized into 64 bins, and quantized to 4 bits. Two GPU kernels perform the auto- and cross-correlations:
 
 1. **Corner turn** — transposes the data from `[spectrum][antenna][channel]` to `[channel][antenna][spectrum]` to group spectra by channel.
-2. **Cross-correlate + integrate** — unpacks 4-bit samples, computes 9 products per channel (3 real auto-correlations + 3 complex cross-correlations), and integrates over a configurable number of spectra.
+2. **Cross-correlate + integrate** — unpacks 4-bit samples, computes all baseline products per channel, and integrates over a configurable number of spectra.
 
 All arithmetic is integer (`int8` inputs, `int32` accumulators), so we can validate the GPU results by exact match against the CPU results.
 
@@ -16,9 +16,9 @@ Validated for correctness. Currently exceeds the original FPGA's throughput:
 | | Spectra/sec | Real-time? |
 |---|---|---|
 | FPGA (original) | 45.0 M | ✓ |
-| GPU (current, A40) | 80.3 M | ✓ (0.56× budget) |
+| GPU (current, A40) | 69.8 M | ✓ (0.65× budget) |
 
-The current bottleneck is the H2D transfer (63% of pipeline time).
+The current bottleneck is the H2D transfer (56% of pipeline time).
 
 ## Performance History
 
@@ -29,6 +29,7 @@ The current bottleneck is the H2D transfer (63% of pipeline time).
 | [v0.3](https://github.com/wjmallard/gpu-xengine/tree/v0.3) | A40 | Tile corner turn in shared memory with coalesced reads | 39.7 M | 88% |
 | [v0.4](https://github.com/wjmallard/gpu-xengine/tree/v0.4) | A40 | Coalesce writes in corner turn | 56.1 M | 125% |
 | [v0.5](https://github.com/wjmallard/gpu-xengine/tree/v0.5) | A40 | Pinned host memory for H2D transfer | 80.3 M | 178% |
+| [v0.6](https://github.com/wjmallard/gpu-xengine/tree/v0.6) | A40 | Generalize to arbitrary N_ANTENNAS | 69.8 M | 155% |
 
 ## Build
 

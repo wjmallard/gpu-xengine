@@ -12,33 +12,23 @@ void xengine_cpu(const uint8_t* packed_data, int32_t* output, int n_spectra) {
 
             int ch_offset = ch * N_PRODUCTS;
 
-            // Unpack 3 antenna samples for this channel in this spectrum
-            int8_t a_re, a_im, b_re, b_im, c_re, c_im;
-            unpack_sample(packed_data[sp_offset + 0 * N_CHANNELS + ch], &a_re, &a_im);
-            unpack_sample(packed_data[sp_offset + 1 * N_CHANNELS + ch], &b_re, &b_im);
-            unpack_sample(packed_data[sp_offset + 2 * N_CHANNELS + ch], &c_re, &c_im);
+            // Unpack all antenna samples for this channel
+            int8_t ant_re[N_ANTENNAS];
+            int8_t ant_im[N_ANTENNAS];
 
-            /*
-            Auto-correlations:
-            |x|^2 = re^2 + im^2
-            */
-            output[ch_offset + 0] += a_re * a_re + a_im * a_im;  // AA*
-            output[ch_offset + 1] += b_re * b_re + b_im * b_im;  // BB*
-            output[ch_offset + 2] += c_re * c_re + c_im * c_im;  // CC*
+            for (int a = 0; a < N_ANTENNAS; a++) {
+                int sample_offset = sp_offset + a * N_CHANNELS + ch;
+                unpack_sample(packed_data[sample_offset], &ant_re[a], &ant_im[a]);
+            }
 
-            /*
-            Cross-correlations: x * conj(y)
-            re = (a_re * b_re) + (a_im * b_im)
-            im = (a_im * b_re) - (a_re * b_im)
-            */
-            output[ch_offset + 3] += a_re * b_re + a_im * b_im;  // AB* real
-            output[ch_offset + 4] += a_im * b_re - a_re * b_im;  // AB* imag
+            // Accumulate all baseline products: x * conj(y)
+            for (int bl = 0; bl < N_BASELINES; bl++) {
+                int ant_i, ant_j;
+                baseline_to_ants(bl, &ant_i, &ant_j);
 
-            output[ch_offset + 5] += b_re * c_re + b_im * c_im;  // BC* real
-            output[ch_offset + 6] += b_im * c_re - b_re * c_im;  // BC* imag
-
-            output[ch_offset + 7] += c_re * a_re + c_im * a_im;  // CA* real
-            output[ch_offset + 8] += c_im * a_re - c_re * a_im;  // CA* imag
+                output[ch_offset + bl * 2 + 0] += ant_re[ant_i] * ant_re[ant_j] + ant_im[ant_i] * ant_im[ant_j];
+                output[ch_offset + bl * 2 + 1] += ant_im[ant_i] * ant_re[ant_j] - ant_re[ant_i] * ant_im[ant_j];
+            }
         }
     }
 }

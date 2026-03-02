@@ -6,10 +6,16 @@
 
 static void print_channel(const int32_t *output, int ch) {
     const int32_t *p = output + ch * N_PRODUCTS;
-    printf(
-        "  ch %2d:  AA*=%-8d BB*=%-8d CC*=%-8d AB*=(%d,%d)  BC*=(%d,%d)  CA*=(%d,%d)\n",
-        ch, p[0], p[1], p[2], p[3], p[4], p[5], p[6], p[7], p[8]
-    );
+    printf("  ch %2d:", ch);
+    for (int bl = 0; bl < N_BASELINES; bl++) {
+        int ant_i, ant_j;
+        baseline_to_ants(bl, &ant_i, &ant_j);
+        if (ant_i == ant_j)
+            printf("  %c%c*=%-8d", 'A'+ant_i, 'A'+ant_j, p[bl*2]);
+        else
+            printf("  %c%c*=(%d,%d)", 'A'+ant_i, 'A'+ant_j, p[bl*2], p[bl*2+1]);
+    }
+    printf("\n");
 }
 
 // ---------------------------------------------------------------------------
