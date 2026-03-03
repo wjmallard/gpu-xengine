@@ -9,16 +9,9 @@ The F-engine simulator generates synthetic input matching the original FPGA outp
 
 All arithmetic is integer (`int8` inputs, `int32` accumulators), so we can validate the GPU results by exact match against the CPU results.
 
-## Status
+## Results
 
-Validated for correctness. Currently exceeds the original FPGA's throughput:
-
-| | Spectra/sec | Real-time? |
-|---|---|---|
-| FPGA (original) | 45.0 M | ✓ |
-| GPU (current, A40) | 69.8 M | ✓ (0.65× budget) |
-
-The current bottleneck is the H2D transfer (56% of pipeline time).
+The original Virtex-5 FPGA processed 45.0 M spectra/sec. This GPU implementation reaches 69.8 M spectra/sec on an A40, and is transfer-bound: H2D accounts for >50% of wall time.
 
 ## Performance History
 
